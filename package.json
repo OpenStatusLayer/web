@@ -1,0 +1,29 @@
+{
+  "name": "@openstatuslayer/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenStatusLayer frontend — dependency-map UI and public status pages",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "gen:types": "openapi-typescript https://raw.githubusercontent.com/OpenStatusLayer/engine/main/openapi/openstatuslayer.yaml -o src/lib/api.d.ts"
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reactflow": "^11.11.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5",
+    "openapi-typescript": "^7.0.0",
+    "typescript": "^5.5.3"
+  }
+}
