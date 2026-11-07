@@ -9,12 +9,14 @@ import ReactFlow, {
   useNodesState,
   type Edge,
   type Node,
+  type NodeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { apiGet, type Service, type ServiceStatus, type Status, type StatusGraph } from '@/lib/api';
 import { layout } from '@/lib/layout';
 
 const POLL_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 8_000;
 
 const COLOR: Record<Status, string> = {
   operational: '#16a34a',
@@ -41,7 +43,7 @@ function useStatus() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (signal?: AbortSignal) => {
+  const load = useCallback(async (signal: AbortSignal) => {
     try {
       // /status carries ids only; /services supplies display names.
       const [graph, services] = await Promise.all([
@@ -51,17 +53,25 @@ function useStatus() {
       setSnapshot({ graph, names: new Map(services.map((s) => [s.id, s.name])) });
       setError(null);
     } catch (err) {
-      if ((err as Error).name === 'AbortError') return;
-      setError((err as Error).message);
+      const e = err as Error;
+      if (e.name === 'AbortError') return; // unmounted
+      setError(e.name === 'TimeoutError' ? 'request timed out' : e.message);
     }
   }, []);
 
+  // One request in flight at a time: the next poll is scheduled only after the
+  // previous one settles, and each poll times out, so a slow engine can't pile
+  // up requests or have an old response overwrite a newer one.
   useEffect(() => {
     const controller = new AbortController();
-    void load(controller.signal);
-    const timer = setInterval(() => void load(controller.signal), POLL_MS);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      await load(AbortSignal.any([controller.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]));
+      if (!controller.signal.aborted) timer = setTimeout(tick, POLL_MS);
+    };
+    void tick();
     return () => {
-      clearInterval(timer);
+      clearTimeout(timer);
       controller.abort();
     };
   }, [load]);
@@ -167,7 +177,13 @@ export function StatusMap() {
   // measured. Nodes are rebuilt on every poll and selection, so keep them in
   // React Flow's state (which records measured sizes via onNodesChange) and
   // carry each node's measured size over to its rebuilt version.
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
+  const [rfNodes, setRfNodes, applyNodeChanges] = useNodesState([]);
+  // Only let React Flow record measured sizes. Removal (Backspace) and its own
+  // selection state would fight the engine-driven nodes and our selection.
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => applyNodeChanges(changes.filter((c) => c.type === 'dimensions')),
+    [applyNodeChanges],
+  );
   useEffect(() => {
     setRfNodes((prev) => {
       const old = new Map(prev.map((n) => [n.id, n]));
@@ -214,6 +230,7 @@ export function StatusMap() {
           nodes={rfNodes}
           edges={edges}
           onNodesChange={onNodesChange}
+          deleteKeyCode={null}
           nodesDraggable={false}
           fitView
           fitViewOptions={{ padding: 0.2 }}

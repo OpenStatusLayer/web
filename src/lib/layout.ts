@@ -2,8 +2,10 @@
 // what they depend on, so failures visibly flow right-to-left:
 //   web  ->  api  ->  db
 //                 ->  cache
-// Column = length of the longest chain of dependents above a service. Cycles are
-// tolerated: relaxation stops after |services| passes.
+// Column = length of the longest chain of dependents above a service. Cycles
+// are allowed by the engine, so edges that close a cycle (back edges in a DFS)
+// are ignored for layout; the rest is a DAG and each column is its longest
+// path. A cycle therefore costs at most one extra column, not one per service.
 
 export interface LayoutEdge {
   serviceId: string; // dependent
@@ -20,20 +22,46 @@ export const ROW_GAP = 90;
 
 export function layoutColumns(ids: string[], edges: LayoutEdge[]): Map<string, number> {
   const known = new Set(ids);
-  const usable = edges.filter(
-    (e) => known.has(e.serviceId) && known.has(e.dependsOnId) && e.serviceId !== e.dependsOnId,
-  );
-  const col = new Map(ids.map((id) => [id, 0]));
-  for (let pass = 0; pass < ids.length; pass += 1) {
-    let changed = false;
-    for (const e of usable) {
-      const want = col.get(e.serviceId)! + 1;
-      if (want > col.get(e.dependsOnId)! && want < ids.length) {
-        col.set(e.dependsOnId, want);
-        changed = true;
+  const deps = new Map<string, string[]>(ids.map((id) => [id, []]));
+  for (const e of edges) {
+    if (known.has(e.serviceId) && known.has(e.dependsOnId) && e.serviceId !== e.dependsOnId) {
+      deps.get(e.serviceId)!.push(e.dependsOnId);
+    }
+  }
+
+  // Iterative DFS (no recursion limit) that keeps only non-back edges and
+  // records a post-order; reversed, that is a topological order of the DAG.
+  const state = new Map<string, 0 | 1 | 2>(ids.map((id) => [id, 0])); // 0 new, 1 on stack, 2 done
+  const dag = new Map<string, string[]>(ids.map((id) => [id, []]));
+  const post: string[] = [];
+  for (const root of [...ids].sort()) {
+    if (state.get(root) !== 0) continue;
+    const stack: [string, number][] = [[root, 0]];
+    state.set(root, 1);
+    while (stack.length) {
+      const top = stack[stack.length - 1];
+      const [id, i] = top;
+      const next = deps.get(id)![i];
+      if (next === undefined) {
+        state.set(id, 2);
+        post.push(id);
+        stack.pop();
+        continue;
+      }
+      top[1] += 1;
+      const st = state.get(next);
+      if (st === 1) continue; // back edge: closes a cycle, ignore for layout
+      dag.get(id)!.push(next);
+      if (st === 0) {
+        state.set(next, 1);
+        stack.push([next, 0]);
       }
     }
-    if (!changed) break;
+  }
+
+  const col = new Map(ids.map((id) => [id, 0]));
+  for (const id of post.reverse()) {
+    for (const d of dag.get(id)!) col.set(d, Math.max(col.get(d)!, col.get(id)! + 1));
   }
   return col;
 }
