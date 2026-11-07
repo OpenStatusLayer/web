@@ -8,3 +8,6 @@ build/
 coverage/
 .DS_Store
 next-env.d.ts
+
+# Generated from the engine OpenAPI spec (npm run gen:types)
+src/lib/schema.d.ts

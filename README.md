@@ -14,7 +14,7 @@ service-status intelligence platform. The backend engine lives in
 
 The engine owns the API contract at
 [`engine/openapi/openstatuslayer.yaml`](https://github.com/OpenStatusLayer/engine/blob/main/openapi/openstatuslayer.yaml).
-We generate `src/lib/api.d.ts` from it so the UI and engine never drift:
+We generate `src/lib/schema.d.ts` from it so the UI and engine never drift:
 
 ```bash
 npm run gen:types
@@ -26,7 +26,7 @@ engine API changes.
 ## Quickstart
 
 ```bash
-cp .env.example .env.local   # point NEXT_PUBLIC_API_URL at the engine
+cp .env.example .env.local   # point ENGINE_URL at the engine (proxied as /engine)
 npm install
 npm run gen:types
 npm run dev                  # http://localhost:3000

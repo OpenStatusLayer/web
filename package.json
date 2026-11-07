@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "gen:types": "openapi-typescript https://raw.githubusercontent.com/OpenStatusLayer/engine/main/openapi/openstatuslayer.yaml -o src/lib/api.d.ts"
+    "gen:types": "openapi-typescript https://raw.githubusercontent.com/OpenStatusLayer/engine/main/openapi/openstatuslayer.yaml -o src/lib/schema.d.ts"
   },
   "dependencies": {
     "next": "^14.2.5",
