@@ -1,0 +1,12 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+
+/* Status map: map + details side by side; stacked on narrow screens. */
+.osl-layout { display: flex; height: 100%; }
+.osl-map { flex: 1; position: relative; min-width: 0; }
+.osl-panel { width: 300px; border-left: 1px solid #e5e7eb; padding: 16px; overflow-y: auto; background: #fafafa; }
+@media (max-width: 720px) {
+  .osl-layout { flex-direction: column; }
+  .osl-map { min-height: 60vh; }
+  .osl-panel { width: auto; border-left: none; border-top: 1px solid #e5e7eb; }
+}
